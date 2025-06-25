@@ -1,0 +1,59 @@
+#include <iostream>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+
+// Shared resources
+std::mutex mtx;
+std::condition_variable cv;
+bool evenTurn = true; // Indicates whether it's even number's turn
+
+// Function to print even numbers from 0 to 10
+void printEvenNumbers() 
+{
+    for (int number = 0; number <= 10; number += 2) 
+    {
+        std::unique_lock<std::mutex> lock(mtx);
+
+        // Wait until it's the even thread's turn
+        cv.wait(lock, []() { return evenTurn; });
+
+        // Print the even number
+        std::cout << "Even: " << number << std::endl;
+
+        // Hand over turn to the odd thread
+        evenTurn = false;
+        cv.notify_one(); // Notify the odd thread
+    }
+}
+
+// Function to print odd numbers from 1 to 9
+void printOddNumbers() {
+    for (int number = 1; number < 10; number += 2) 
+    {
+        std::unique_lock<std::mutex> lock(mtx);
+
+        // Wait until it's the odd thread's turn
+        cv.wait(lock, []() { return !evenTurn; });
+
+        // Print the odd number
+        std::cout << "Odd: " << number << std::endl;
+
+        // Hand over turn to the even thread
+        evenTurn = true;
+        cv.notify_one(); // Notify the even thread
+    }
+}
+
+int main() 
+{
+    // Create threads for even and odd number printing
+    std::thread evenThread(printEvenNumbers);
+    std::thread oddThread(printOddNumbers);
+
+    // Wait for both threads to complete
+    evenThread.join();
+    oddThread.join();
+
+    return 0;
+}
